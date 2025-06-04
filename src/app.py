@@ -8,6 +8,7 @@ from datetime import datetime
 import time
 import sys
 from pathlib import Path
+import re
 
 # 프로젝트 루트 추가
 sys.path.append(str(Path(__file__).parent.parent))
@@ -206,97 +207,106 @@ def _display_stock_chart(company_code, period="1mo"):
         return None
 
 def _display_comprehensive_insights(company_code, company_name):
-    """EXAONE Deep 분석 결과 표시"""
+    """EXAONE 분석 결과 표시"""
     try:
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        status_text.text("🧠 EXAONE Deep이 종합 인사이트 생성 중...")
+        status_text.text("🧠 EXAONE이 종합 인사이트 생성 중...")
         progress_bar.progress(50)
         
-        response = requests.get(f"{API_URL}/comprehensive_insights/{company_code}?company_name={company_name}", timeout=30)
+        response = requests.get(f"{API_URL}/comprehensive_insights/{company_code}?company_name={company_name}", timeout=120)
         response.raise_for_status()
         data = response.json()
         
         progress_bar.progress(100)
-        status_text.text("✅ EXAONE Deep 분석 완료!")
+        status_text.text("✅ EXAONE 분석 완료!")
         time.sleep(1)
         progress_bar.empty()
         status_text.empty()
         
         insights = data.get('comprehensive_insights', {})
-        kr_finbert_results = data.get('kr_finbert_results', {})
-        sentiment_summary = kr_finbert_results.get('sentiment_summary', {})
-        chart_trend = data.get('chart_trend', '알 수 없음')
+        exaone_raw = insights.get('original_response', '')  # EXAONE 원본(한글) 응답
+
+        # 마크다운 강조 구문을 HTML 볼드체로 변환
+        def convert_markdown_to_html(text):
+            # ** 강조 구문을 HTML <strong> 태그로 변환
+            text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+            return text
+
+        # 추천, 확신도, 근거 한글로 파싱
+        rec_map = {"매수": "매수", "보류": "보류", "매도": "매도"}
+        recommendation = ""
+        confidence = ""
         
-        if insights:
-            st.markdown("### 🧠 EXAONE Deep 2.4B 투자 인사이트")
-            
-            recommendation = insights['recommendation']
-            confidence = insights['confidence']
-            
-            color_map = {"매수": "#00D4AA", "매도": "#FF6B6B", "보류": "#F39C12"}
-            emoji_map = {"매수": "📈", "매도": "📉", "보류": "⏸️"}
-            
-            color = color_map.get(recommendation, "#95A5A6")
-            emoji = emoji_map.get(recommendation, "❓")
-            
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, {color}20, {color}10);
-                border: 2px solid {color};
-                border-radius: 15px;
-                padding: 2rem;
-                text-align: center;
-                margin: 1rem 0;
-            ">
-                <h1 style="color: {color}; margin: 0; font-size: 3rem;">{emoji} {recommendation}</h1>
-                <h3 style="color: {color}; margin: 0.5rem 0;">EXAONE Deep 확신도: {confidence:.1%}</h3>
-                <p style="color: #666; margin: 0;">KR-FinBERT 감성 분석 + 차트 트렌드 종합 판단</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 한글 근거 생성
-            reason = insights.get('reason', '')
-            
-            # 영어 응답을 한글로 변환
-            if reason and any(char.isascii() and char.isalpha() for char in reason[:50]):
-                pos_count = sentiment_summary.get('positive_count', 0)
-                neg_count = sentiment_summary.get('negative_count', 0)
-                neu_count = sentiment_summary.get('neutral_count', 0)
-                total = pos_count + neg_count + neu_count
-                
-                if total > 0:
-                    pos_ratio = pos_count / total
-                    neg_ratio = neg_count / total
-                    
-                    if recommendation == "매수":
-                        reason = f"KR-FinBERT 분석 결과 긍정적인 뉴스가 {pos_count}개({pos_ratio:.1%})로 부정적인 뉴스 {neg_count}개({neg_ratio:.1%})보다 많아 긍정적인 시장 분위기를 보이고 있습니다. 차트 트렌드({chart_trend})와 함께 종합 분석한 결과 단기적으로 상승 가능성이 높다고 판단됩니다."
-                    elif recommendation == "매도":
-                        reason = f"KR-FinBERT 분석 결과 부정적인 뉴스가 {neg_count}개({neg_ratio:.1%})로 긍정적인 뉴스 {pos_count}개({pos_ratio:.1%})보다 많아 시장 심리가 악화되고 있습니다. 차트 트렌드({chart_trend})도 함께 고려할 때 단기적으로 하락 위험이 있다고 판단됩니다."
-                    else:
-                        reason = f"KR-FinBERT 분석 결과 긍정 뉴스 {pos_count}개와 부정 뉴스 {neg_count}개가 비슷한 수준으로 시장 방향성이 불분명합니다. 차트 트렌드({chart_trend})와 함께 분석한 결과 현재 시점에서는 관망하는 것이 적절하다고 판단됩니다."
+        # ** 마크다운 강조 구문이 있는 경우와 없는 경우 모두 처리
+        rec_patterns = [
+            r'투자추천[:\s]*\*\*([매수매도보류]+)\*\*',  # ** 강조 구문이 있는 경우
+            r'투자추천[:\s]*([매수매도보류]+)'           # 강조 구문이 없는 경우
+        ]
+        
+        for pattern in rec_patterns:
+            rec_match = re.search(pattern, exaone_raw)
+            if rec_match:
+                recommendation = rec_map.get(rec_match.group(1), rec_match.group(1))
+                break
+        
+        # 확신도 파싱 개선 (숫자 또는 백분율)
+        conf_patterns = [
+            r'확신도[:\s]*\*\*(\d+)\*\*',  # ** 강조 구문이 있는 경우
+            r'확신도[:\s]*(\d+)',          # 강조 구문이 없는 경우
+            r'확신도[:\s]*(\d+(?:\.\d+)?%)'  # 백분율 형식
+        ]
+        
+        for pattern in conf_patterns:
+            conf_match = re.search(pattern, exaone_raw)
+            if conf_match:
+                conf_value = conf_match.group(1)
+                if '%' in conf_value:
+                    confidence = conf_value
                 else:
-                    reason = f"분석할 뉴스 데이터가 부족하여 명확한 투자 방향을 제시하기 어렵습니다. 차트 트렌드({chart_trend})만을 고려한 기술적 분석 결과입니다."
-            
-            st.markdown(f"""
-            <div style="
-                background: #E8F4FD;
-                border-left: 4px solid #2196F3;
-                padding: 1rem;
-                border-radius: 5px;
-                margin: 1rem 0;
-            ">
-                <h4 style="color: #1976D2; margin: 0 0 0.5rem 0;">🧠 EXAONE Deep 2.4B 분석 근거</h4>
-                <p style="margin: 0; color: #333;">{reason}</p>
-                <small style="color: #666;">토스페이 뉴스 KR-FinBERT 감성 결과와 차트 트렌드를 종합한 AI 판단</small>
-            </div>
-            """, unsafe_allow_html=True)
+                    confidence = f"{int(conf_value) * 10}%"  # 1-10 스케일을 백분율로 변환
+                break
+
+        emoji_map = {"매수": "📈", "매도": "📉", "보류": "⏸️"}
+        color_map = {"매수": "#00D4AA", "매도": "#FF6B6B", "보류": "#F39C12"}
+        emoji = emoji_map.get(recommendation, "❓")
+        color = color_map.get(recommendation, "#95A5A6")
+        
+        st.markdown("### 🧠 EXAONE 투자 인사이트")
+        
+        # 추천 카드 (볼드체 적용)
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, {color}20, {color}10);
+            border: 2px solid {color};
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+        ">
+            <h1 style="color: {color}; margin: 0; font-size: 3rem;">{emoji} {convert_markdown_to_html(f"**{recommendation}**") if recommendation else "AI 추천 미검출"}</h1>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # EXAONE 원본 응답 그대로 표시 (볼드체 적용)
+        st.markdown(f"""
+        <div style="
+            background: #E8F4FD;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        ">
+            <h4 style="color: #1976D2; margin: 0 0 0.5rem 0;">🧠 EXAONE 분석 근거 (원본)</h4>
+            <p style="margin: 0; color: #333; white-space: pre-wrap;">{convert_markdown_to_html(exaone_raw)}</p>
+        </div>
+        """, unsafe_allow_html=True)
                     
         return insights
         
     except Exception as e:
-        st.error(f"❌ EXAONE Deep 분석 실패: {e}")
+        st.error(f"❌ EXAONE 분석 실패: {e}")
         return None
 
 def _display_news_analysis(news_df):
@@ -469,7 +479,7 @@ with st.sidebar:
         "📊 차트 기간", 
         options=["1mo", "3mo", "6mo", "1y"], 
         index=0,
-        help="EXAONE Deep 분석에 사용할 차트 기간"
+        help="EXAONE 분석에 사용할 차트 기간"
     )
     
     st.divider()
@@ -633,7 +643,7 @@ if st.session_state.auto_analysis_done:
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        if st.button("🧠 EXAONE Deep 투자 인사이트 생성", type="primary", use_container_width=True):
+        if st.button("🧠 EXAONE 투자 인사이트 생성", type="primary", use_container_width=True):
             _display_comprehensive_insights(selected_code, selected_company)
 else:
     st.info("🎯 먼저 기업을 선택하여 KR-FinBERT 자동 분석을 완료해주세요.")
@@ -651,13 +661,13 @@ st.markdown("""
 ">
     <h4 style="color: #495057; margin: 0 0 1rem 0;">🤖 주식 뉴스 AI 감성 분석</h4>
     <p style="color: #6C757D; margin: 0 0 1rem 0;">
-        📱 <strong>토스페이 API</strong> + 🎯 <strong>KR-FinBERT</strong> + 🧠 <strong>EXAONE Deep</strong>
+        📱 <strong>토스페이 API</strong> + 🎯 <strong>KR-FinBERT</strong> + 🧠 <strong>EXAONE</strong>
     </p>
     <p style="color: #6C757D; margin: 0; font-size: 0.9rem;">
         ⚠️ 이 서비스는 투자 참고용입니다. 실제 투자 결정은 본인의 책임입니다.
     </p>
     <p style="color: #ADB5BD; margin: 0.5rem 0 0 0; font-size: 0.8rem;">
-        🔧 Made with TossPay API • KR-FinBERT • EXAONE Deep 2.4B • Streamlit • FastAPI
+        🔧 Made with TossPay API • KR-FinBERT • EXAONE • Streamlit • FastAPI
     </p>
 </div>
 """, unsafe_allow_html=True)

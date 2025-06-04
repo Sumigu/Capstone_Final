@@ -23,7 +23,7 @@ from src.sentiment_analyzer import SentimentAnalyzer
 logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="주식 뉴스 AI 분석 API (KR-FinBERT + EXAONE Deep + TossPay)")
+app = FastAPI(title="주식 뉴스 AI 분석 API (KR-FinBERT + EXAONE + TossPay)")
 
 # CORS 설정
 app.add_middleware(
@@ -336,21 +336,21 @@ async def startup_event():
     
     init_database()
     
-    logger.info("🎯 Initializing AI Pipeline: KR-FinBERT (1단계) + EXAONE Deep (2단계)")
+    logger.info("🎯 Initializing AI Pipeline: KR-FinBERT (1단계) + EXAONE (2단계)")
     sentiment_analyzer = SentimentAnalyzer()
-    logger.info("✅ AI Pipeline initialized: 1단계(감성분석) + 2단계(투자인사이트)")
+    logger.info("✅ AI Pipeline initialized: 감성분석 + 투자 인사이트")
 
 @app.get("/")
 def read_root():
     return {
-        "message": "주식 뉴스 AI 분석 API (KR-FinBERT + EXAONE Deep + TossPay)", 
+        "message": "주식 뉴스 AI 분석 API (KR-FinBERT + EXAONE + TossPay)", 
         "ai_pipeline": {
             "stage_1": "KR-FinBERT: 한국어 금융 뉴스 감성 분류",
-            "stage_2": "EXAONE Deep: 감성 결과 + 차트 → 투자 인사이트"
+            "stage_2": "EXAONE: 감성 결과 + 차트 → 투자 인사이트"
         },
         "features": [
             "1단계: KR-FinBERT 한국어 금융 도메인 특화 감성 분석",
-            "2단계: EXAONE Deep 2.4B 종합 투자 인사이트",
+            "2단계: EXAONE: 감성 결과 + 차트 → 투자 인사이트",
             "토스페이 증권 뉴스 API 연동",
             "네이버 금융 실시간 주가 차트",
             "뉴스 크롤링 및 DB 저장",
@@ -644,7 +644,7 @@ def crawl_company_news_optimized(company_code: str, company_name: Optional[str] 
                 "news_data": news_df.to_dict(orient="records"),
                 "sentiment_summary": sentiment_summary,
                 "analysis_stage": "1단계 완료: KR-FinBERT 토스페이 뉴스 감성 분석",
-                "next_stage": "2단계 대기: EXAONE Deep 종합 인사이트",
+                "next_stage": "2단계 대기: EXAONE 종합 인사이트",
                 "data_source": "TossPay Securities News API"
             }
         else:
@@ -670,7 +670,7 @@ def crawl_company_news_optimized(company_code: str, company_name: Optional[str] 
 
 @app.get("/comprehensive_insights/{company_code}")
 def get_comprehensive_insights(company_code: str, company_name: Optional[str] = None):
-    """2단계: EXAONE Deep이 KR-FinBERT 결과 + 차트 → 종합 투자 인사이트 생성"""
+    """2단계: EXAONE이 KR-FinBERT 결과 + 차트 → 종합 투자 인사이트 생성"""
     try:
         if not company_name:
             companies = get_companies()
@@ -681,7 +681,7 @@ def get_comprehensive_insights(company_code: str, company_name: Optional[str] = 
             if not company_name:
                 company_name = company_code
         
-        logger.info(f"🧠 2단계 시작: EXAONE Deep이 {company_name} 종합 투자 인사이트 생성")
+        logger.info(f"🧠 2단계 시작: EXAONE이 {company_name} 종합 투자 인사이트 생성")
         
         # 1. 네이버 차트 데이터 가져오기
         chart_data = get_stock_chart_data(company_code, period="1mo", interval="1d")
@@ -735,8 +735,8 @@ def get_comprehensive_insights(company_code: str, company_name: Optional[str] = 
         # 5. 주가 데이터 가져오기
         stock_price_data = get_stock_price(company_code)
         
-        # 6. EXAONE Deep 2.4B로 종합 인사이트 생성
-        logger.info(f"🧠 2단계 진행: EXAONE Deep이 KR-FinBERT 결과({sentiment_summary['total_news']}개 토스페이 뉴스)와 차트({chart_trend})를 종합 분석")
+        # 6. EXAONE로 종합 인사이트 생성
+        logger.info(f"🧠 2단계 진행: EXAONE이 KR-FinBERT 결과({sentiment_summary['total_news']}개 토스페이 뉴스)와 차트({chart_trend})를 종합 분석")
         insights = sentiment_analyzer.generate_comprehensive_investment_insight(
             sentiment_summary, stock_price_data, company_name, news_titles, chart_trend
         )
@@ -746,7 +746,7 @@ def get_comprehensive_insights(company_code: str, company_name: Optional[str] = 
             "company_name": company_name,
             "analysis_pipeline": {
                 "stage_1": "KR-FinBERT 토스페이 뉴스 감성 분석 완료",
-                "stage_2": "EXAONE Deep 감성+차트 종합 인사이트 생성 완료"
+                "stage_2": "EXAONE 감성+차트 종합 인사이트 생성 완료"
             },
             "chart_trend": chart_trend,
             "chart_data_source": chart_data.get('data_source', 'Naver Finance'),
@@ -762,7 +762,7 @@ def get_comprehensive_insights(company_code: str, company_name: Optional[str] = 
                 "status": stock_price_data.get('status')
             },
             "comprehensive_insights": insights,
-            "analysis_method": "2단계 AI 파이프라인: KR-FinBERT(토스페이 뉴스 감성) + EXAONE Deep(종합인사이트)"
+            "analysis_method": "2단계 AI 파이프라인: KR-FinBERT(토스페이 뉴스 감성) + EXAONE(종합인사이트)"
         }
         
     except Exception as e:
@@ -827,14 +827,13 @@ def health_check():
         "version": "2.1.0-TOSSPAY-NEWS",
         "ai_pipeline": {
             "stage_1": "KR-FinBERT Korean Financial News Sentiment Analysis",
-            "stage_2": "EXAONE Deep 2.4B Comprehensive Investment Insights"
+            "stage_2": "EXAONE Comprehensive Investment Insights"
         },
         "data_sources": {
             "news": "TossPay Securities News API",
             "stock_price": "Naver Finance",
             "chart": "Naver Finance"
         },
-        "features": ["KR-FinBERT", "EXAONE-Deep-2.4B", "TossPay News", "Naver Charts"],
+        "features": ["KR-FinBERT", "EXAONE", "TossPay News", "Naver Charts"],
         "database": str(DATABASE_PATH)
     }
-

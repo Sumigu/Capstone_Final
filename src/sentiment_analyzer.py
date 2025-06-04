@@ -20,7 +20,7 @@ class SentimentAnalyzer:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
-        logger.info("🎯 AI 역할 분담: KR-FinBERT(1단계: 감성분석) + EXAONE Deep(2단계: 투자인사이트)")
+        logger.info("🎯 AI 역할 분담: KR-FinBERT(1단계: 감성분석) + EXAONE(2단계: 투자인사이트)")
         
         # 모델 디렉토리 생성
         os.makedirs(FINBERT_LOCAL_PATH, exist_ok=True)
@@ -29,8 +29,8 @@ class SentimentAnalyzer:
         # KR-FinBERT 초기화 (1단계: 한국어 금융 뉴스 감성 분석 전문)
         self._init_kr_finbert_local()
         
-        # EXAONE Deep 2.4B 초기화 (2단계: 감성 결과 + 차트 → 투자 인사이트)
-        self._init_exaone_deep_local()
+        # EXAONE 초기화 (2단계: 감성 결과 + 차트 → 투자 인사이트)
+        self._init_exaone_local()
     
     def _is_model_downloaded(self, model_path):
         """모델이 로컬에 다운로드되어 있는지 확인"""
@@ -82,13 +82,13 @@ class SentimentAnalyzer:
             logger.error(f"❌ Error loading KR-FinBERT: {e}")
             self.kr_finbert_available = False
     
-    def _init_exaone_deep_local(self):
-        """EXAONE Deep 2.4B 모델 로컬 저장 및 로드 (투자 인사이트 생성)"""
+    def _init_exaone_local(self):
+        """EXAONE 모델 로컬 저장 및 로드 (투자 인사이트 생성)"""
         try:
-            logger.info("🧠 2단계: Loading EXAONE Deep 2.4B for investment insights generation...")
+            logger.info("🧠 2단계: Loading EXAONE for investment insights generation...")
             
             if self._is_model_downloaded(EXAONE_LOCAL_PATH):
-                logger.info("Loading EXAONE Deep from local storage...")
+                logger.info("Loading EXAONE from local storage...")
                 self.exaone_tokenizer = AutoTokenizer.from_pretrained(
                     str(EXAONE_LOCAL_PATH),
                     trust_remote_code=True
@@ -103,7 +103,7 @@ class SentimentAnalyzer:
                     trust_remote_code=True
                 )
             else:
-                logger.info("Downloading and saving EXAONE Deep locally...")
+                logger.info("Downloading and saving EXAONE locally...")
                 self.exaone_tokenizer = AutoTokenizer.from_pretrained(
                     EXAONE_MODEL,
                     trust_remote_code=True
@@ -121,16 +121,16 @@ class SentimentAnalyzer:
                 # 로컬에 저장
                 self.exaone_tokenizer.save_pretrained(str(EXAONE_LOCAL_PATH))
                 self.exaone_model.save_pretrained(str(EXAONE_LOCAL_PATH))
-                logger.info(f"EXAONE Deep saved to: {EXAONE_LOCAL_PATH}")
+                logger.info(f"EXAONE saved to: {EXAONE_LOCAL_PATH}")
             
             if self.exaone_tokenizer.pad_token is None:
                 self.exaone_tokenizer.pad_token = self.exaone_tokenizer.eos_token
             
-            logger.info("✅ Successfully loaded EXAONE Deep 2.4B (Investment Insights Generator)")
+            logger.info("✅ Successfully loaded EXAONE (Investment Insights Generator)")
             self.exaone_available = True
             
         except Exception as e:
-            logger.error(f"❌ Error loading EXAONE Deep 2.4B: {e}")
+            logger.error(f"❌ Error loading EXAONE: {e}")
             self.exaone_available = False
     
     def _batch_predict_kr_finbert(self, texts, batch_size=BATCH_SIZE):
@@ -192,7 +192,7 @@ class SentimentAnalyzer:
         df['sentiment_prob'] = [r['probability'] for r in batch_results]
         df['model_used'] = [r['model_used'] for r in batch_results]
         df['analysis_reason'] = ['KR-FinBERT 한국어 금융 도메인 특화 분석' for _ in batch_results]
-        df['investment_impact'] = ['2단계: EXAONE Deep 종합 인사이트 대기' for _ in batch_results]
+        df['investment_impact'] = ['2단계: EXAONE 종합 인사이트 대기' for _ in batch_results]
         
         # 분석 결과 요약
         sentiment_counts = df['sentiment'].value_counts()
@@ -204,17 +204,17 @@ class SentimentAnalyzer:
             logger.info(f"{sentiment}: {count}개 ({percentage:.1f}%)")
         
         logger.info(f"✅ 1단계 완료: KR-FinBERT가 {total}개 한국어 금융 뉴스 감성 분석 완료")
-        logger.info("🧠 2단계 준비: EXAONE Deep이 감성 결과와 차트를 종합하여 투자 인사이트 생성 예정")
+        logger.info("🧠 2단계 준비: EXAONE이 감성 결과와 차트를 종합하여 투자 인사이트 생성 예정")
         
         return df
     
     def generate_comprehensive_investment_insight(self, news_sentiment_summary, stock_price_data, company_name, news_titles, chart_trend=None):
-        """2단계: EXAONE Deep 2.4B가 KR-FinBERT 감성 결과 + 차트 → 투자 인사이트 생성"""
+        """2단계: EXAONE이 KR-FinBERT 감성 결과 + 차트 → 투자 인사이트 생성"""
         if not self.exaone_available:
             return self._simple_recommendation_from_kr_finbert_summary(news_sentiment_summary, stock_price_data)
         
         try:
-            logger.info(f"🧠 2단계 시작: EXAONE Deep이 KR-FinBERT 결과와 차트를 종합하여 {company_name} 투자 인사이트 생성")
+            logger.info(f"🧠 2단계 시작: EXAONE이 KR-FinBERT 결과와 차트를 종합하여 {company_name} 투자 인사이트 생성")
             
             positive_count = news_sentiment_summary.get('positive_count', 0)
             negative_count = news_sentiment_summary.get('negative_count', 0)
@@ -224,10 +224,15 @@ class SentimentAnalyzer:
             if total_news == 0:
                 return {
                     "recommendation": "보류", 
-                    "reason": "KR-FinBERT가 분석할 뉴스가 없어 EXAONE Deep 인사이트 생성 불가", 
+                    "reason": "KR-FinBERT가 분석할 뉴스가 없어 EXAONE 인사이트 생성 불가", 
                     "ai_generated": False,
                     "analysis_stage": "1단계 데이터 부족"
                 }
+            
+            # 감성 비율 계산
+            total_relevant = positive_count + negative_count
+            positive_ratio = (positive_count / total_relevant * 100) if total_relevant > 0 else 50
+            negative_ratio = (negative_count / total_relevant * 100) if total_relevant > 0 else 50
             
             current_price = stock_price_data.get('current_price', 'N/A')
             change_rate = stock_price_data.get('change_rate', 'N/A')
@@ -240,15 +245,16 @@ class SentimentAnalyzer:
             if chart_trend:
                 chart_info = f"차트 트렌드: {chart_trend}"
             
-            # 개선된 EXAONE Deep용 프롬프트 (완전 한국어, 명확한 형식)
+            # 개선된 EXAONE용 프롬프트 (감성 비율 명시 및 논리적 일관성 강화)
             prompt = f"""당신은 전문 투자 분석가입니다. 다음 정보를 바탕으로 {company_name}에 대한 투자 판단을 해주세요.
 
 【분석 정보】
 • KR-FinBERT 감성 분석 결과
-  - 긍정 뉴스: {positive_count}개
-  - 부정 뉴스: {negative_count}개  
+  - 긍정 뉴스: {positive_count}개 ({positive_ratio:.1f}%)
+  - 부정 뉴스: {negative_count}개 ({negative_ratio:.1f}%)
   - 중립 뉴스: {neutral_count}개
   - 총 뉴스: {total_news}개
+  - 감성 경향: {'부정적' if negative_ratio > 60 else '긍정적' if positive_ratio > 60 else '중립적'}
 
 • 주가 정보
   - 현재가: {current_price}원
@@ -259,12 +265,18 @@ class SentimentAnalyzer:
 • 주요 뉴스
 {chr(10).join([f"  - {title}" for title in top_news_titles])}
 
+【분석 가이드라인】
+1. 뉴스 감성이 60% 이상 부정적이면 매도 고려
+2. 뉴스 감성이 60% 이상 긍정적이면 매수 고려
+3. 뉴스 감성이 혼재된 경우 차트 트렌드 중점 고려
+4. 뉴스와 차트가 상충할 경우 보수적 접근
+
 【요청사항】
-위 정보를 종합하여 다음 형식으로 답변해주세요.
+위 정보와 가이드라인을 종합하여 다음 형식으로 답변해주세요.
 
 투자추천: 매수/보류/매도 중 하나
 확신도: 1~10점 중 하나  
-분석근거: KR-FinBERT 감성 결과와 차트 정보를 연결한 구체적인 투자 판단 이유를 2-3문장으로 설명
+분석근거: 뉴스 감성 비율과 차트 정보를 연결한 구체적인 투자 판단 이유를 2-3문장으로 설명
 
 답변:"""
 
@@ -288,24 +300,31 @@ class SentimentAnalyzer:
             generated_tokens = outputs[0][input_length:]
             response = self.exaone_tokenizer.decode(generated_tokens, skip_special_tokens=True)
             
-            logger.info("✅ 2단계 완료: EXAONE Deep이 KR-FinBERT 결과와 차트를 종합한 투자 인사이트 생성 완료")
+            logger.info("✅ 2단계 완료: EXAONE이 KR-FinBERT 결과와 차트를 종합한 투자 인사이트 생성 완료")
             
             return self._parse_comprehensive_insight(response, news_sentiment_summary, stock_price_data)
             
         except Exception as e:
-            logger.error(f"EXAONE Deep 2단계 종합 인사이트 생성 오류: {e}")
+            logger.error(f"EXAONE 2단계 종합 인사이트 생성 오류: {e}")
             return self._simple_recommendation_from_kr_finbert_summary(news_sentiment_summary, stock_price_data)
     
     def _parse_comprehensive_insight(self, response, sentiment_summary, stock_data):
-        """EXAONE Deep 종합 인사이트 응답 파싱"""
+        """EXAONE 종합 인사이트 응답 파싱"""
         try:
             response = response.strip()
-            logger.info(f"EXAONE Deep 원본 응답: {response}")
+            logger.info(f"EXAONE 원본 응답: {response}")
             
-            # 투자추천 추출
+            # 투자추천 추출 (마크다운 강조 구문과 파이프 구분자 처리)
             recommendation = "보류"
-            if "투자추천:" in response:
-                rec_match = re.search(r'투자추천[:\s]*([매수매도보류]+)', response)
+            rec_patterns = [
+                r'투자추천[:\s]*\*\*([매수매도보류]+)\*\*[\s|]*',  # ** 강조 구문이 있는 경우 (파이프 포함)
+                r'투자추천[:\s]*([매수매도보류]+)[\s|]*',          # 일반 텍스트 (파이프 포함)
+                r'투자추천[:\s]*\*\*([매수매도보류]+)\*\*',       # ** 강조 구문만 있는 경우
+                r'투자추천[:\s]*([매수매도보류]+)'                # 일반 텍스트만 있는 경우
+            ]
+            
+            for pattern in rec_patterns:
+                rec_match = re.search(pattern, response)
                 if rec_match:
                     rec_text = rec_match.group(1)
                     if '매수' in rec_text:
@@ -314,48 +333,64 @@ class SentimentAnalyzer:
                         recommendation = "매도"
                     else:
                         recommendation = "보류"
-            elif '매수' in response:
-                recommendation = "매수"
-            elif '매도' in response:
-                recommendation = "매도"
+                    break
             
-            # 확신도 추출
+            # 확신도 추출 (마크다운 강조 구문과 파이프 구분자 처리)
             confidence = 0.7
-            confidence_match = re.search(r'확신도[:\s]*(\d+)', response)
-            if confidence_match:
-                confidence_score = int(confidence_match.group(1))
-                confidence = min(max(confidence_score / 10, 0.1), 1.0)
+            conf_patterns = [
+                r'확신도[:\s]*\*\*(\d+)\*\*[\s|]*',  # ** 강조 구문이 있는 경우 (파이프 포함)
+                r'확신도[:\s]*(\d+)[\s|]*',          # 일반 텍스트 (파이프 포함)
+                r'확신도[:\s]*\*\*(\d+)\*\*',        # ** 강조 구문만 있는 경우
+                r'확신도[:\s]*(\d+)',                # 일반 텍스트만 있는 경우
+                r'확신도[:\s]*(\d+(?:\.\d+)?%)'      # 백분율 형식
+            ]
             
-            # 분석근거 추출
-            reason = "EXAONE Deep 종합 분석 결과"
-            if "분석근거:" in response:
-                reason_match = re.search(r'분석근거[:\s]*(.+)', response, re.DOTALL)
+            for pattern in conf_patterns:
+                conf_match = re.search(pattern, response)
+                if conf_match:
+                    conf_value = conf_match.group(1)
+                    if '%' in conf_value:
+                        confidence = float(conf_value.rstrip('%')) / 100
+                    else:
+                        confidence = min(max(int(conf_value) / 10, 0.1), 1.0)
+                    break
+            
+            # 분석근거 추출 (마크다운 강조 구문 유지)
+            reason = "EXAONE 종합 분석 결과"
+            reason_patterns = [
+                r'분석근거[:\s]*\*\*(.+?)\*\*(?=\s*(?:\||$))',  # ** 강조 구문이 있는 경우 (파이프 포함)
+                r'분석근거[:\s]*(.+?)(?=\s*(?:\||$))',          # 일반 텍스트 (파이프 포함)
+                r'분석근거[:\s]*(.+)',                          # 전체 텍스트
+            ]
+            
+            for pattern in reason_patterns:
+                reason_match = re.search(pattern, response, re.DOTALL)
                 if reason_match:
                     reason = reason_match.group(1).strip()
-                    reason = re.sub(r'\n+', ' ', reason)
-                    reason = re.sub(r'\s+', ' ', reason)
-                    reason = reason[:300]
+                    break
             
             if not reason or len(reason.strip()) < 10:
-                reason = f"KR-FinBERT 분석 결과 긍정 {sentiment_summary.get('positive_count', 0)}개, 부정 {sentiment_summary.get('negative_count', 0)}개를 바탕으로 한 EXAONE Deep 종합 판단"
+                reason = f"KR-FinBERT가 분석한 긍정 {sentiment_summary.get('positive_count', 0)}개, 부정 {sentiment_summary.get('negative_count', 0)}개를 바탕으로 한 EXAONE 종합 판단"
             
             return {
                 "recommendation": recommendation,
                 "confidence": confidence,
                 "reason": reason,
                 "ai_generated": True,
-                "model_used": "EXAONE-Deep-2.4B-Improved",
-                "analysis_stage": "2단계 완료: KR-FinBERT + 차트 종합"
+                "model_used": "EXAONE-Improved",
+                "analysis_stage": "2단계 완료: KR-FinBERT + 차트 종합",
+                "original_response": response  # 원본 응답 포함
             }
             
         except Exception as e:
-            logger.error(f"EXAONE Deep 인사이트 파싱 오류: {e}")
+            logger.error(f"EXAONE 인사이트 파싱 오류: {e}")
             return {
                 "recommendation": "보류",
                 "confidence": 0.5,
-                "reason": "EXAONE Deep 분석 중 파싱 오류 발생",
+                "reason": "EXAONE 분석 중 파싱 오류 발생",
                 "ai_generated": False,
-                "analysis_stage": "2단계 파싱 오류"
+                "analysis_stage": "2단계 파싱 오류",
+                "original_response": response  # 오류 시에도 원본 응답 포함
             }
     
     def _simple_recommendation_from_kr_finbert_summary(self, news_sentiment_summary, stock_price_data):

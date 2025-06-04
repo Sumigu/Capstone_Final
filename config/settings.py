@@ -7,7 +7,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 # 모델 저장 경로
 MODELS_DIR = PROJECT_ROOT / "models"
 FINBERT_LOCAL_PATH = MODELS_DIR / "kr_finbert"
-EXAONE_LOCAL_PATH = MODELS_DIR / "exaone_deep"
+EXAONE_LOCAL_PATH = MODELS_DIR / "exaone_3_5_2_4b_instruct"
 
 # 데이터베이스 설정
 DATABASE_PATH = PROJECT_ROOT / "database" / "news_data.db"
@@ -22,9 +22,9 @@ API_URL = f"http://localhost:{API_PORT}"
 STREAMLIT_HOST = "0.0.0.0"
 STREAMLIT_PORT = 8501
 
-# AI 모델 설정 (역할 명확화)
-FINBERT_MODEL = "snunlp/KR-FinBert-SC"  # 한국어 금융 뉴스 감성 분류 전문
-EXAONE_MODEL = "LGAI-EXAONE/EXAONE-Deep-2.4B"  # 감성 결과 + 차트 → 투자 인사이트
+# AI 모델 설정
+FINBERT_MODEL = "snunlp/KR-FinBert-SC"
+EXAONE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 
 # 모델 역할 정의
 MODEL_ROLES = {

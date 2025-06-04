@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI 모델 사전 다운로드 스크립트 (KR-FinBERT + EXAONE Deep)
+AI 모델 사전 다운로드 스크립트 (KR-FinBERT + EXAONE)
 """
 
 import os
@@ -30,9 +30,9 @@ def download_kr_finbert():
     except Exception as e:
         print(f"❌ KR-FinBERT 다운로드 실패: {e}")
 
-def download_exaone_deep():
-    """EXAONE Deep 2.4B 모델 다운로드"""
-    print("📦 EXAONE Deep 2.4B 모델 다운로드 중...")
+def download_exaone():
+    """EXAONE 모델 다운로드"""
+    print("📦 EXAONE 모델 다운로드 중...")
     
     os.makedirs(EXAONE_LOCAL_PATH, exist_ok=True)
     
@@ -46,17 +46,17 @@ def download_exaone_deep():
         tokenizer.save_pretrained(str(EXAONE_LOCAL_PATH))
         model.save_pretrained(str(EXAONE_LOCAL_PATH))
         
-        print(f"✅ EXAONE Deep 저장 완료: {EXAONE_LOCAL_PATH}")
+        print(f"✅ EXAONE 저장 완료: {EXAONE_LOCAL_PATH}")
         
     except Exception as e:
-        print(f"❌ EXAONE Deep 다운로드 실패: {e}")
+        print(f"❌ EXAONE 다운로드 실패: {e}")
 
 if __name__ == "__main__":
     print("🚀 2단계 AI 파이프라인 모델 다운로드 시작...")
     print("1단계: KR-FinBERT (한국어 금융 뉴스 감성 분석)")
-    print("2단계: EXAONE Deep 2.4B (종합 투자 인사이트)")
+    print("2단계: EXAONE (종합 투자 인사이트)")
     
     download_kr_finbert()
-    download_exaone_deep()
+    download_exaone()
     
     print("✅ 2단계 AI 파이프라인 모델 다운로드 완료!")

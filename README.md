@@ -15,8 +15,8 @@
    - 토스페이 뉴스 제목 감성 분석 (긍정/부정/중립)
    - 기업 선택 시 자동 실행
 
-2. **🧠 2단계: EXAONE Deep 2.4B (수동)**
-   - LG AI Research의 EXAONE Deep 2.4B 모델
+2. **🧠 2단계: EXAONE (수동)**
+   - LG AI Research의 EXAONE 모델
    - 1단계 감성 결과 + 차트 트렌드 종합 분석
    - 한글 투자 근거와 함께 매수/매도/보류 추천
 
@@ -40,7 +40,7 @@
 
 ### AI/ML
 - **KR-FinBERT**: 한국어 금융 감성 분석
-- **EXAONE Deep 2.4B**: 투자 인사이트 생성
+- **EXAONE**: 투자 인사이트 생성
 - **PyTorch**: 딥러닝 프레임워크
 - **Transformers**: 모델 로딩
 
